@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Calendar</title>
+<meta name="title" content="Calendar">
+<meta name="og:title" content="Calendar">
+<meta name="description" content="A simple printable calendar with the full year on a single page">
+<meta name="og:description" content="A simple printable calendar with the full year on a single page">
+<meta name="fediverse:creator" content="@neatnik@social.lol">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta property="og:image" content="https://www.neatnik.net/calendar/card.jpg">
+<meta name="twitter:title" content="Calendar">
+<meta name="twitter:description" content="A simple printable calendar with the full year on a single page">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image:src" content="https://www.neatnik.net/calendar/card.jpg">
+<style>
+@import url('https://fonts.bunny.net/css?family=inter:300|oswald:300,400');
+@media print {
+  @page {
+    margin: 0;
+    padding: 1em;
+  }
+  td {
+    font-size: 8px !important;
+  }
+  .weekend {
+    background: #d8d8d8 !important;
+  }
+}
+html {
+  font-family: 'Oswald';
+}
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+table {
+  width: 100%;
+  height: calc(100% - 2.5em);
+  border-collapse: separate;
+  border-spacing: .5em 0;
+  table-layout: fixed;
+}
+td, th {
+  font-weight: normal;
+  text-transform: uppercase;
+  border-bottom: 1px solid #888;
+  padding: .3vmin .3vmin;
+  font-size: .9vmin;
+  font-weight: 300;
+  color: #000;
+}
+th {
+  font-size: 1.1vmin;
+  padding: 0;
+}
+td:empty {
+  border: 0;
+}
+.date {
+  display: inline-block;
+  width: 1.1em;
+}
+.day {
+  display: inline-block;
+  text-align: center;
+  width: 1em;
+  color: #888;
+}
+.weekend {
+  background: #eee;
+  font-weight: 400;
+}
+p {
+  margin: 0 0 .5em 0;
+  text-align: center;
+}
+/* Use standard CSS for color adjustment */
+* {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+* {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+</style>
+</head>
+<body>
+
+<table id="calendar-table">
+  <thead>
+    <tr id="year-headers"></tr>
+    <tr id="month-headers"></tr>
+  </thead>
+  <tbody id="calendar-body"></tbody>
+</table>
+
+<script>
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const startMonthParam = params.get('start_month');
+  const endMonthParam = params.get('end_month');
+  const yearParam = params.get('year');
+  const layout = params.get('layout');
+  const sofshavua = params.has('sofshavua');
+  const weekendDays = sofshavua ? [5, 6] : [6, 0];
+
+  let startDate;
+  if (startMonthParam) {
+    startDate = new Date(startMonthParam + '-01T00:00:00Z');
+  } else if (yearParam) {
+    startDate = new Date(Date.UTC(parseInt(yearParam), 0, 1));
+  } else {
+    const now = new Date();
+    startDate = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+  }
+
+  let endDate;
+  if (endMonthParam) {
+    endDate = new Date(endMonthParam + '-01T00:00:00Z');
+  } else {
+    endDate = new Date(startDate);
+    endDate.setUTCMonth(endDate.getUTCMonth() + 11);
+  }
+
+  // Cap at 12 months
+  const maxEndDate = new Date(startDate);
+  maxEndDate.setUTCMonth(maxEndDate.getUTCMonth() + 11);
+  if (endDate > maxEndDate) endDate = maxEndDate;
+
+  const months = [];
+  let curr = new Date(startDate);
+  while (curr <= endDate && months.length < 12) {
+    months.push({ year: curr.getUTCFullYear(), month: curr.getUTCMonth() });
+    curr.setUTCMonth(curr.getUTCMonth() + 1);
+  }
+
+  // Pre-calculate days in month
+  function getDaysInMonth(year, month) {
+    return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  }
+
+  // Labels and Headers
+  const yearHeaders = document.getElementById('year-headers');
+  const monthHeaders = document.getElementById('month-headers');
+
+  months.forEach((mObj, i) => {
+    const thY = document.createElement('th');
+    if (i === 0 || mObj.month === 0) {
+      thY.textContent = mObj.year;
+    }
+    yearHeaders.appendChild(thY);
+
+    const thM = document.createElement('th');
+    const date = new Date(Date.UTC(mObj.year, mObj.month, 1));
+    thM.textContent = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
+    monthHeaders.appendChild(thM);
+  });
+
+  const calendarBody = document.getElementById('calendar-body');
+
+  if (layout === 'aligned-weekdays') {
+    const datesMatrix = []; 
+    months.forEach((mObj, colIdx) => {
+      datesMatrix[colIdx] = new Array(42).fill(0);
+      const firstDay = new Date(Date.UTC(mObj.year, mObj.month, 1)).getUTCDay();
+      let firstDayISO = firstDay === 0 ? 7 : firstDay;
+      let dayCounter = 1;
+      let started = false;
+      const daysInMonth = getDaysInMonth(mObj.year, mObj.month);
+      for (let x = 1; x <= 42; x++) {
+        if (!started) {
+          if (firstDayISO === x) {
+            datesMatrix[colIdx][x - 1] = dayCounter++;
+            started = true;
+          }
+        } else {
+          if (dayCounter <= daysInMonth) datesMatrix[colIdx][x - 1] = dayCounter++;
+        }
+      }
+    });
+
+    for (let d = 0; d < 42; d++) {
+      const tr = document.createElement('tr');
+      months.forEach((mObj, colIdx) => {
+        const td = document.createElement('td');
+        const dayVal = datesMatrix[colIdx][d];
+        if (dayVal > 0) {
+          const dateObj = new Date(Date.UTC(mObj.year, mObj.month, dayVal));
+          if (weekendDays.includes(dateObj.getUTCDay())) td.className = 'weekend';
+          td.textContent = dayVal;
+        }
+        tr.appendChild(td);
+      });
+      calendarBody.appendChild(tr);
+    }
+  } else {
+    for (let d = 1; d <= 31; d++) {
+      const tr = document.createElement('tr');
+      months.forEach(mObj => {
+        const td = document.createElement('td');
+        const daysInMonth = getDaysInMonth(mObj.year, mObj.month);
+        if (d <= daysInMonth) {
+          const dateObj = new Date(Date.UTC(mObj.year, mObj.month, d));
+          if (weekendDays.includes(dateObj.getUTCDay())) td.className = 'weekend';
+          const dateSpan = document.createElement('span');
+          dateSpan.className = 'date';
+          dateSpan.textContent = d;
+          const daySpan = document.createElement('span');
+          daySpan.className = 'day';
+          daySpan.textContent = dateObj.toLocaleString('en-US', { weekday: 'short', timeZone: 'UTC' }).charAt(0);
+          td.appendChild(dateSpan);
+          td.appendChild(document.createTextNode(' '));
+          td.appendChild(daySpan);
+        }
+        tr.appendChild(td);
+      });
+      calendarBody.appendChild(tr);
+    }
+  }
+})();
+</script>
+</body>
+</html>
