@@ -1,3 +1,5 @@
+https://gerardfp.github.io/calendar/
+
 # Calendar
 
 A simple, printable, single-page year calendar. It automatically fits on a single sheet of paper of any size.
